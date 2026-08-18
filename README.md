@@ -18,7 +18,7 @@ The numbers and the links are kept by hand in `results.txt`, one line per cell:
 
 Then build the page:
 
-    python create_results_page.py
+    uv run create_results_page.py
 
 It writes `results.html` beside itself and reports how many cells are still
 missing. An unknown method, a percentage that is not 10, 25, 50 or 100, or a

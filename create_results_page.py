@@ -2,7 +2,7 @@
 
 The page is built from `results.txt` alone, which is written by hand:
 
-    python create_results_page.py
+    uv run create_results_page.py
 """
 
 import logging
@@ -10,6 +10,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from html import escape
 from pathlib import Path
+
+from matplotlib import colormaps
+from matplotlib.colors import to_hex
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -51,24 +54,17 @@ CONDITION_LABELS = tuple(
 _DARK_INK = "#0b0b0b"
 _LIGHT_INK = "#ffffff"
 
-# The Blues colormap of matplotlib, by its nine control points. A cell color
-# is read off the ramp at the exact reward, not at a rounded step, the same way
-# matplotlib interpolates between these points. The reward runs from 0 to 1, so
-# the scale is fixed to that range rather than to the values on the page: a
-# cell keeps its color when a run is replaced, and the tables stay comparable.
-# In dark mode the ramp is reversed, so a reward of 0 recedes into the dark
-# page instead of glowing on it.
-_REWARD_RAMP = (
-    "#f7fbff",
-    "#deebf7",
-    "#c6dbef",
-    "#9ecae1",
-    "#6baed6",
-    "#4292c6",
-    "#2171b5",
-    "#08519c",
-    "#08306b",
-)
+# A cell color comes straight out of the Blues colormap, asked at the reward
+# itself. The reward runs from 0 to 1, which is also the range of the colormap,
+# so the scale is fixed rather than fitted to the values on the page: a cell
+# keeps its color when a run is replaced, and the tables stay comparable. In
+# dark mode the colormap is read from the other end, so a reward of 0 recedes
+# into the dark page instead of glowing on it.
+_REWARD_COLORMAP = colormaps["Blues"]
+
+# How many colors the legend gradient is drawn from. The browser blends
+# between them, so a few dozen already look continuous.
+_LEGEND_STOP_COUNT = 32
 
 
 @dataclass(frozen=True)
@@ -287,10 +283,8 @@ def _render_row(
 def _render_cell(*, result: Result | None) -> str:
     if result is None:
         return '<td class="empty"></td>'
-    fill = _reward_color(reward_mean=result.reward_mean, ramp=_REWARD_RAMP)
-    dark_fill = _reward_color(
-        reward_mean=result.reward_mean, ramp=tuple(reversed(_REWARD_RAMP))
-    )
+    fill = _reward_color(reward_mean=result.reward_mean)
+    dark_fill = _reward_color(reward_mean=result.reward_mean, from_the_other_end=True)
     style = (
         f"--fill:{fill};--ink:{_ink(fill=fill)};"
         f"--dark-fill:{dark_fill};--dark-ink:{_ink(fill=dark_fill)}"
@@ -304,26 +298,26 @@ def _render_cell(*, result: Result | None) -> str:
     )
 
 
-def _reward_color(*, reward_mean: float, ramp: tuple[str, ...]) -> str:
-    position = min(max(reward_mean, 0.0), 1.0) * (len(ramp) - 1)
-    lower_index = min(int(position), len(ramp) - 2)
-    return _to_hex(
-        color=tuple(
-            round(lower_value + (upper_value - lower_value) * (position - lower_index))
-            for lower_value, upper_value in zip(
-                _to_channels(hex_color=ramp[lower_index]),
-                _to_channels(hex_color=ramp[lower_index + 1]),
-            )
-        )
-    )
+def _reward_color(*, reward_mean: float, from_the_other_end: bool = False) -> str:
+    position = min(max(reward_mean, 0.0), 1.0)
+    if from_the_other_end:
+        position = 1.0 - position
+    return to_hex(c=_REWARD_COLORMAP(position))
 
 
 def _to_channels(*, hex_color: str) -> tuple[int, ...]:
     return tuple(int(hex_color[index : index + 2], 16) for index in (1, 3, 5))
 
 
-def _to_hex(*, color: tuple[int, ...]) -> str:
-    return "#" + "".join(f"{value:02x}" for value in color)
+def _legend_gradient(*, from_the_other_end: bool = False) -> str:
+    stops = ", ".join(
+        _reward_color(
+            reward_mean=index / (_LEGEND_STOP_COUNT - 1),
+            from_the_other_end=from_the_other_end,
+        )
+        for index in range(_LEGEND_STOP_COUNT)
+    )
+    return f"linear-gradient(to right, {stops})"
 
 
 def _ink(*, fill: str) -> str:
@@ -375,7 +369,7 @@ _STYLE = f"""
   --border: #d9dce1;
   --text: #14161a;
   --muted: #6b7280;
-  --scale: linear-gradient(to right, {", ".join(_REWARD_RAMP)});
+  --scale: {_legend_gradient()};
 }}
 @media (prefers-color-scheme: dark) {{
   :root {{
@@ -384,7 +378,7 @@ _STYLE = f"""
     --border: #333842;
     --text: #e8eaee;
     --muted: #9aa1ac;
-    --scale: linear-gradient(to right, {", ".join(reversed(_REWARD_RAMP))});
+    --scale: {_legend_gradient(from_the_other_end=True)};
   }}
 }}
 body {{
