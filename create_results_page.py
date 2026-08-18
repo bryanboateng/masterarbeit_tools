@@ -25,21 +25,21 @@ OUTPUT_FILE_PATH = Path(__file__).parent / "results.html"
 @dataclass(frozen=True)
 class Method:
     key: str
-    # The two heading rows: the augmentation groups the columns, the policy
+    # The two heading rows: the policy groups the columns, the augmentation
     # names the single column. A method that is neither, such as GPI, leaves
-    # the policy empty and takes both rows.
-    augmentation: str
+    # the augmentation empty and takes both rows.
     policy: str
+    augmentation: str
 
 
 # Also fixes the column order of every table.
 METHODS = (
-    Method(key="bc", augmentation="no augmentation", policy="BC"),
-    Method(key="dp", augmentation="no augmentation", policy="DP"),
-    Method(key="ccil", augmentation="CCIL", policy="BC"),
-    Method(key="gpi", augmentation="GPI", policy=""),
-    Method(key="tacil-bc", augmentation="TaCIL", policy="BC"),
-    Method(key="tacil-dp", augmentation="TaCIL", policy="DP"),
+    Method(key="bc", policy="BC", augmentation="none"),
+    Method(key="ccil", policy="BC", augmentation="CCIL"),
+    Method(key="tacil-bc", policy="BC", augmentation="TaCIL"),
+    Method(key="gpi", policy="GPI", augmentation=""),
+    Method(key="dp", policy="DP", augmentation="none"),
+    Method(key="tacil-dp", policy="DP", augmentation="TaCIL"),
 )
 
 DATASET_PERCENTAGES = (10, 25, 50, 100)
@@ -221,26 +221,26 @@ def _render_table(*, condition_label: str, results: dict[Cell, Result]) -> str:
 
 
 def _render_head() -> str:
-    augmentation_headings = ""
     policy_headings = ""
-    for augmentation, methods in _group_by_augmentation().items():
-        if any(method.policy for method in methods):
-            augmentation_headings += f'<th colspan="{len(methods)}">{augmentation}</th>'
-            policy_headings += "".join(
-                f"<th>{method.policy}</th>" for method in methods
+    augmentation_headings = ""
+    for policy, methods in _group_by_policy().items():
+        if any(method.augmentation for method in methods):
+            policy_headings += f'<th colspan="{len(methods)}">{policy}</th>'
+            augmentation_headings += "".join(
+                f"<th>{method.augmentation}</th>" for method in methods
             )
         else:
-            augmentation_headings += f'<th rowspan="2">{augmentation}</th>'
+            policy_headings += f'<th rowspan="2">{policy}</th>'
     return f"""<thead>
-<tr><th rowspan="2">Data</th>{augmentation_headings}</tr>
-<tr>{policy_headings}</tr>
+<tr><th rowspan="2">Data</th>{policy_headings}</tr>
+<tr>{augmentation_headings}</tr>
 </thead>"""
 
 
-def _group_by_augmentation() -> dict[str, list[Method]]:
+def _group_by_policy() -> dict[str, list[Method]]:
     groups: dict[str, list[Method]] = {}
     for method in METHODS:
-        groups.setdefault(method.augmentation, []).append(method)
+        groups.setdefault(method.policy, []).append(method)
     return groups
 
 
