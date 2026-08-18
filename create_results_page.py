@@ -425,20 +425,20 @@ thead th, tbody th {{
   white-space: nowrap;
 }}
 col.label-column {{ width: 4rem; }}
-tbody th {{ text-align: right; }}
 /* One height for every cell, so the grid stays even wherever a run is
    missing. */
-td {{ height: 2.2rem; }}
+td {{ height: 2.7rem; }}
 td.reward {{ background: var(--fill); color: var(--ink); }}
 @media (prefers-color-scheme: dark) {{
   td.reward {{ background: var(--dark-fill); color: var(--dark-ink); }}
 }}
 td a {{
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 0.3rem;
   height: 100%;
+  line-height: 1.15;
   color: inherit;
   text-decoration: none;
 }}
