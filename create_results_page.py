@@ -36,10 +36,10 @@ class Method:
 METHODS = (
     Method(key="bc", policy="BC", augmentation="none"),
     Method(key="ccil", policy="BC", augmentation="CCIL"),
-    Method(key="tacil-bc", policy="BC", augmentation="TaCIL"),
+    Method(key="tacil-bc", policy="BC", augmentation="TACIL"),
     Method(key="gpi", policy="GPI", augmentation=""),
     Method(key="dp", policy="DP", augmentation="none"),
-    Method(key="tacil-dp", policy="DP", augmentation="TaCIL"),
+    Method(key="tacil-dp", policy="DP", augmentation="TACIL"),
 )
 
 DATASET_PERCENTAGES = (10, 25, 50, 100)
