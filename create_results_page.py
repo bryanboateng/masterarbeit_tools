@@ -7,7 +7,6 @@ The page is built from `results.txt` alone, which is written by hand:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from html import escape
 from pathlib import Path
 
@@ -55,11 +54,10 @@ _DARK_INK = "#0b0b0b"
 _LIGHT_INK = "#ffffff"
 
 # A cell color comes straight out of the Blues colormap, asked at the reward
-# itself. The reward runs from 0 to 1, which is also the range of the colormap,
-# so the scale is fixed rather than fitted to the values on the page: a cell
-# keeps its color when a run is replaced, and the tables stay comparable. In
-# dark mode the colormap is read from the other end, so a reward of 0 recedes
-# into the dark page instead of glowing on it.
+# itself, in both page themes. The reward runs from 0 to 1, which is also the
+# range of the colormap, so the scale is fixed rather than fitted to the values
+# on the page: a cell keeps its color when a run is replaced, and the tables
+# stay comparable.
 _REWARD_COLORMAP = colormaps["Blues"]
 
 
@@ -185,7 +183,6 @@ def _render_page(*, results: dict[Cell, Result]) -> str:
         _render_table(condition_label=condition_label, results=results)
         for condition_label in CONDITION_LABELS
     )
-    generation_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -196,8 +193,6 @@ def _render_page(*, results: dict[Cell, Result]) -> str:
 </head>
 <body>
 <h1>Results</h1>
-<p class="subtitle">Evaluation reward, mean over 100 episodes with its standard
-deviation. Every cell links to its run. Generated {generation_time}.</p>
 {tables}
 </body>
 </html>
@@ -271,25 +266,17 @@ def _render_cell(*, result: Result | None) -> str:
     if result is None:
         return '<td class="empty"></td>'
     fill = _reward_color(reward_mean=result.reward_mean)
-    dark_fill = _reward_color(reward_mean=result.reward_mean, from_the_other_end=True)
-    style = (
-        f"--fill:{fill};--ink:{_ink(fill=fill)};"
-        f"--dark-fill:{dark_fill};--dark-ink:{_ink(fill=dark_fill)}"
-    )
     return (
-        f'<td class="reward" style="{style}">'
-        f'<a href="{escape(result.url)}">'
+        f'<td class="reward" style="--fill:{fill};--ink:{_ink(fill=fill)}">'
+        f'<a href="{escape(result.url)}" target="_blank" rel="noopener">'
         f'<span class="mean">{result.reward_mean:.3f}</span>'
         f'<span class="deviation">±{result.reward_standard_deviation:.3f}</span>'
         f"</a></td>"
     )
 
 
-def _reward_color(*, reward_mean: float, from_the_other_end: bool = False) -> str:
-    position = min(max(reward_mean, 0.0), 1.0)
-    if from_the_other_end:
-        position = 1.0 - position
-    return to_hex(c=_REWARD_COLORMAP(position))
+def _reward_color(*, reward_mean: float) -> str:
+    return to_hex(c=_REWARD_COLORMAP(min(max(reward_mean, 0.0), 1.0)))
 
 
 def _to_channels(*, hex_color: str) -> tuple[int, ...]:
@@ -366,7 +353,6 @@ body {
 }
 h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
 h2 { font-size: 1rem; margin: 1.6rem 0 0.4rem; font-weight: 600; }
-.subtitle { color: var(--muted); margin: 0; font-size: 0.85rem; }
 .table-wrapper { overflow-x: auto; }
 table {
   border-collapse: collapse;
@@ -388,9 +374,6 @@ col.label-column { width: 4rem; }
    missing. */
 td { height: 2.7rem; }
 td.reward { background: var(--fill); color: var(--ink); }
-@media (prefers-color-scheme: dark) {
-  td.reward { background: var(--dark-fill); color: var(--dark-ink); }
-}
 td a {
   display: flex;
   flex-direction: column;
