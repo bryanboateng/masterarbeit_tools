@@ -62,10 +62,6 @@ _LIGHT_INK = "#ffffff"
 # into the dark page instead of glowing on it.
 _REWARD_COLORMAP = colormaps["Blues"]
 
-# How many colors the legend gradient is drawn from. The browser blends
-# between them, so a few dozen already look continuous.
-_LEGEND_STOP_COUNT = 32
-
 
 @dataclass(frozen=True)
 class Cell:
@@ -202,19 +198,10 @@ def _render_page(*, results: dict[Cell, Result]) -> str:
 <h1>Results</h1>
 <p class="subtitle">Evaluation reward, mean over 100 episodes with its standard
 deviation. Every cell links to its run. Generated {generation_time}.</p>
-{_render_legend()}
 {tables}
 </body>
 </html>
 """
-
-
-def _render_legend() -> str:
-    return (
-        '<div class="legend"><span>reward 0</span>'
-        '<span class="scale"></span>'
-        "<span>1</span></div>"
-    )
 
 
 def _render_table(*, condition_label: str, results: dict[Cell, Result]) -> str:
@@ -309,17 +296,6 @@ def _to_channels(*, hex_color: str) -> tuple[int, ...]:
     return tuple(int(hex_color[index : index + 2], 16) for index in (1, 3, 5))
 
 
-def _legend_gradient(*, from_the_other_end: bool = False) -> str:
-    stops = ", ".join(
-        _reward_color(
-            reward_mean=index / (_LEGEND_STOP_COUNT - 1),
-            from_the_other_end=from_the_other_end,
-        )
-        for index in range(_LEGEND_STOP_COUNT)
-    )
-    return f"linear-gradient(to right, {stops})"
-
-
 def _ink(*, fill: str) -> str:
     """Picks the ink that reads on the fill.
 
@@ -361,27 +337,25 @@ def _relative_luminance(*, hex_color: str) -> float:
     )
 
 
-_STYLE = f"""
-:root {{
+_STYLE = """
+:root {
   color-scheme: light dark;
   --background: #ffffff;
   --surface: #f6f7f9;
   --border: #d9dce1;
   --text: #14161a;
   --muted: #6b7280;
-  --scale: {_legend_gradient()};
-}}
-@media (prefers-color-scheme: dark) {{
-  :root {{
+}
+@media (prefers-color-scheme: dark) {
+  :root {
     --background: #16181d;
     --surface: #1e2128;
     --border: #333842;
     --text: #e8eaee;
     --muted: #9aa1ac;
-    --scale: {_legend_gradient(from_the_other_end=True)};
-  }}
-}}
-body {{
+  }
+}
+body {
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
   max-width: 58rem;
@@ -389,44 +363,35 @@ body {{
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   line-height: 1.4;
-}}
-h1 {{ font-size: 1.5rem; margin: 0 0 0.25rem; }}
-h2 {{ font-size: 1rem; margin: 1.6rem 0 0.4rem; font-weight: 600; }}
-.subtitle {{ color: var(--muted); margin: 0; font-size: 0.85rem; }}
-.legend {{
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.9rem;
-  color: var(--muted);
-  font-size: 0.78rem;
-}}
-.legend .scale {{ width: 18rem; height: 0.6rem; background: var(--scale); }}
-.table-wrapper {{ overflow-x: auto; }}
-table {{
+}
+h1 { font-size: 1.5rem; margin: 0 0 0.25rem; }
+h2 { font-size: 1rem; margin: 1.6rem 0 0.4rem; font-weight: 600; }
+.subtitle { color: var(--muted); margin: 0; font-size: 0.85rem; }
+.table-wrapper { overflow-x: auto; }
+table {
   border-collapse: collapse;
   table-layout: fixed;
   width: 100%;
   min-width: 34rem;
   font-size: 0.82rem;
-}}
-th, td {{ border: 1px solid var(--border); padding: 0; text-align: center; }}
-thead th, tbody th {{
+}
+th, td { border: 1px solid var(--border); padding: 0; text-align: center; }
+thead th, tbody th {
   background: var(--surface);
   color: var(--text);
   padding: 0.25rem 0.5rem;
   font-weight: 600;
   white-space: nowrap;
-}}
-col.label-column {{ width: 4rem; }}
+}
+col.label-column { width: 4rem; }
 /* One height for every cell, so the grid stays even wherever a run is
    missing. */
-td {{ height: 2.7rem; }}
-td.reward {{ background: var(--fill); color: var(--ink); }}
-@media (prefers-color-scheme: dark) {{
-  td.reward {{ background: var(--dark-fill); color: var(--dark-ink); }}
-}}
-td a {{
+td { height: 2.7rem; }
+td.reward { background: var(--fill); color: var(--ink); }
+@media (prefers-color-scheme: dark) {
+  td.reward { background: var(--dark-fill); color: var(--dark-ink); }
+}
+td a {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -435,12 +400,12 @@ td a {{
   line-height: 1.15;
   color: inherit;
   text-decoration: none;
-}}
-td a:hover {{ outline: 2px solid var(--text); outline-offset: -2px; }}
-td.empty {{ background: repeating-linear-gradient(
-  45deg, transparent, transparent 5px, var(--surface) 5px, var(--surface) 10px); }}
-.mean {{ font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; }}
-.deviation {{ font-size: 0.76rem; font-variant-numeric: tabular-nums; }}
+}
+td a:hover { outline: 2px solid var(--text); outline-offset: -2px; }
+td.empty { background: repeating-linear-gradient(
+  45deg, transparent, transparent 5px, var(--surface) 5px, var(--surface) 10px); }
+.mean { font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.deviation { font-size: 0.76rem; font-variant-numeric: tabular-nums; }
 """
 
 
