@@ -11,7 +11,7 @@
 #   python create_results_page.py
 
 [grippy_undisturbed]
-# 10 tacil-dp 0.351 0.360 https://wandb.ai/bryanboateng-team/…/runs/3ohsiome
+10 tacil-dp 0.351 0.360 https://wandb.ai/bryanboateng-team/…/runs/3ohsiome
 
 [grippy_low_disturbance]
 

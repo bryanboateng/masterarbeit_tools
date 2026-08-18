@@ -51,26 +51,23 @@ CONDITION_LABELS = tuple(
 _DARK_INK = "#0b0b0b"
 _LIGHT_INK = "#ffffff"
 
-# A sequential blue ramp, from the step nearest the page to the darkest one.
-# A cell color is read off this ramp at the exact reward, not at a rounded
-# step. The reward runs from 0 to 1, so the scale is fixed to that range rather
-# than to the values on the page: a cell keeps its color when a run is
-# replaced, and the tables stay comparable. In dark mode the ramp is reversed,
-# so a reward of 0 recedes into the dark page instead of glowing on it.
+# The Blues colormap of matplotlib, by its nine control points. A cell color
+# is read off the ramp at the exact reward, not at a rounded step, the same way
+# matplotlib interpolates between these points. The reward runs from 0 to 1, so
+# the scale is fixed to that range rather than to the values on the page: a
+# cell keeps its color when a run is replaced, and the tables stay comparable.
+# In dark mode the ramp is reversed, so a reward of 0 recedes into the dark
+# page instead of glowing on it.
 _REWARD_RAMP = (
-    "#cde2fb",
-    "#b7d3f6",
-    "#9ec5f4",
-    "#86b6ef",
-    "#6da7ec",
-    "#5598e7",
-    "#3987e5",
-    "#2a78d6",
-    "#256abf",
-    "#1c5cab",
-    "#184f95",
-    "#104281",
-    "#0d366b",
+    "#f7fbff",
+    "#deebf7",
+    "#c6dbef",
+    "#9ecae1",
+    "#6baed6",
+    "#4292c6",
+    "#2171b5",
+    "#08519c",
+    "#08306b",
 )
 
 
@@ -431,7 +428,7 @@ col.label-column {{ width: 4rem; }}
 tbody th {{ text-align: right; }}
 /* One height for every cell, so the grid stays even wherever a run is
    missing. */
-td {{ height: 1.9rem; }}
+td {{ height: 2.2rem; }}
 td.reward {{ background: var(--fill); color: var(--ink); }}
 @media (prefers-color-scheme: dark) {{
   td.reward {{ background: var(--dark-fill); color: var(--dark-ink); }}
@@ -448,8 +445,8 @@ td a {{
 td a:hover {{ outline: 2px solid var(--text); outline-offset: -2px; }}
 td.empty {{ background: repeating-linear-gradient(
   45deg, transparent, transparent 5px, var(--surface) 5px, var(--surface) 10px); }}
-.mean {{ font-variant-numeric: tabular-nums; }}
-.deviation {{ font-size: 0.72rem; font-variant-numeric: tabular-nums; }}
+.mean {{ font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; }}
+.deviation {{ font-size: 0.76rem; font-variant-numeric: tabular-nums; }}
 """
 
 
