@@ -1,0 +1,24 @@
+# One line per cell:
+#
+#   <dataset percentage> <method> <reward mean> <standard deviation> <run URL>
+#
+# A line in brackets opens a condition; every line below it belongs to that
+# condition. Dataset percentages are 10, 25, 50 and 100. Methods are bc, dp,
+# ccil, gpi, tacil-bc and tacil-dp. Everything after a "#" is ignored.
+#
+# Build the page with:
+#
+#   python create_results_page.py
+
+[grippy_undisturbed]
+# 10 tacil-dp 0.351 0.360 https://wandb.ai/bryanboateng-team/…/runs/3ohsiome
+
+[grippy_low_disturbance]
+
+[grippy_high_disturbance]
+
+[slippery_undisturbed]
+
+[slippery_low_disturbance]
+
+[slippery_high_disturbance]

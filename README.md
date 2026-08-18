@@ -11,13 +11,18 @@ result: one table per evaluation condition, the dataset percentages as rows and
 the six methods as columns. A cell shows the reward mean with its standard
 deviation, is colored by the reward, and links to its run.
 
-Paste the URL of a run into `runs.txt`, one per line, then run:
+The numbers and the links are kept by hand in `results.txt`, one line per cell:
 
-    uv run create_results_page.py
+    [grippy_undisturbed]
+    10 tacil-dp 0.351 0.360 https://wandb.ai/…/runs/3ohsiome
 
-The script reads the dataset percentage, the method and the evaluation
-condition from each run itself, so the order of the lines does not matter. It
-writes `results.html` beside itself.
+Then build the page:
+
+    python create_results_page.py
+
+It writes `results.html` beside itself and reports how many cells are still
+missing. An unknown method, a percentage that is not 10, 25, 50 or 100, or a
+cell filled twice stops the build and names the line.
 
 ## Cluster
 

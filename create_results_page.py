@@ -1,34 +1,23 @@
-# /// script
-# requires-python = ">=3.13"
-# dependencies = ["wandb"]
-# ///
 """Builds one HTML page that shows every evaluation result as a linked table.
 
-This script stands on its own. It reads nothing but the run URLs beside it and
-the Weights & Biases API, so it does not belong to the experiment code:
+The page is built from `results.txt` alone, which is written by hand:
 
-    uv run create_results_page.py
+    python create_results_page.py
 """
 
 import logging
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from html import escape
 from pathlib import Path
-
-import wandb
-from wandb.apis.public import Run
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
 logger = logging.getLogger(name=__name__)
 
-RUNS_FILE_PATH = Path(__file__).parent / "runs.txt"
+RESULTS_FILE_PATH = Path(__file__).parent / "results.txt"
 OUTPUT_FILE_PATH = Path(__file__).parent / "results.html"
-
-EVALUATION_STAGE_NAME = "4_evaluation"
 
 
 @dataclass(frozen=True)
@@ -58,12 +47,6 @@ CONDITION_LABELS = tuple(
     for floor_condition in ("grippy", "slippery")
     for disturbance_label in ("undisturbed", "low_disturbance", "high_disturbance")
 )
-
-_RUN_URL_PATTERN = re.compile(
-    r"^https?://wandb\.ai/(?P<entity>[^/]+)/(?P<project>[^/]+)/runs/(?P<run_id>[^/?#]+)"
-)
-
-_DATASET_ARTIFACT_PATTERN = re.compile(r"dataset-(?P<percentage>\d+)")
 
 _DARK_INK = "#0b0b0b"
 _LIGHT_INK = "#ffffff"
@@ -101,118 +84,111 @@ class Cell:
 @dataclass(frozen=True)
 class Result:
     url: str
-    run_name: str
     reward_mean: float
     reward_standard_deviation: float
 
 
 def main() -> None:
-    urls = _read_urls(file_path=RUNS_FILE_PATH)
-    logger.info("Read %d run URLs from %s", len(urls), RUNS_FILE_PATH)
-
-    api = wandb.Api()
-    results: dict[Cell, Result] = {}
-    for url in urls:
-        run = api.run(path=_run_path(url=url))
-        cell = _locate(run=run)
-        already_placed = results.get(cell)
-        if already_placed is not None:
-            raise ValueError(
-                f"Two runs fall into the same cell {cell}: "
-                f"{already_placed.url} and {url}"
-            )
-        results[cell] = _read_result(run=run, url=url)
-        logger.info("%s -> %s", url, cell)
-
-    _log_missing_cells(results=results)
+    results = _read_results(file_path=RESULTS_FILE_PATH)
+    cell_count = len(CONDITION_LABELS) * len(DATASET_PERCENTAGES) * len(METHODS)
+    logger.info(
+        "Read %d of %d cells from %s, %d still missing.",
+        len(results),
+        cell_count,
+        RESULTS_FILE_PATH,
+        cell_count - len(results),
+    )
 
     OUTPUT_FILE_PATH.write_text(_render_page(results=results))
     logger.info("Wrote %s", OUTPUT_FILE_PATH)
 
 
-def _read_urls(*, file_path: Path) -> list[str]:
-    urls = []
-    for line in file_path.read_text().splitlines():
-        stripped_line = line.split("#")[0].strip()
-        if stripped_line:
-            urls.append(stripped_line)
-    return urls
+def _read_results(*, file_path: Path) -> dict[Cell, Result]:
+    """Reads the hand-written table.
 
-
-def _run_path(*, url: str) -> str:
-    match = _RUN_URL_PATTERN.match(url)
-    if match is None:
-        raise ValueError(f"Not a Weights & Biases run URL: {url}")
-    return f"{match['entity']}/{match['project']}/{match['run_id']}"
-
-
-def _locate(*, run: Run) -> Cell:
-    return Cell(
-        condition_label=_read_condition_label(run=run),
-        dataset_percentage=_read_dataset_percentage(run=run),
-        method_key=_read_method_key(run=run),
-    )
-
-
-def _read_condition_label(*, run: Run) -> str:
-    floor_condition = run.config["floor_condition"].lower()
-    disturbance_level = run.config["disturbance_level"]
-    if disturbance_level is None:
-        return f"{floor_condition}_undisturbed"
-    return f"{floor_condition}_{disturbance_level.lower()}_disturbance"
-
-
-def _read_dataset_percentage(*, run: Run) -> int:
-    artifact_name = run.config["expert_dataset_artifact"]
-    match = _DATASET_ARTIFACT_PATTERN.search(artifact_name)
-    if match is None:
-        raise ValueError(
-            f"Run {run.url} trained on {artifact_name}, which carries no dataset "
-            "percentage."
+    A line in brackets opens a condition, every line below it holds one cell:
+    the dataset percentage, the method, the reward mean, its standard deviation
+    and the run URL.
+    """
+    results: dict[Cell, Result] = {}
+    condition_label = None
+    for line_number, line in enumerate(file_path.read_text().splitlines(), start=1):
+        location = f"{file_path}:{line_number}"
+        content = line.split("#")[0].strip()
+        if not content:
+            continue
+        if content.startswith("[") and content.endswith("]"):
+            condition_label = _read_condition_label(
+                text=content[1:-1].strip(), location=location
+            )
+            continue
+        if condition_label is None:
+            raise ValueError(f"{location}: no condition opened above this line.")
+        cell, result = _read_cell(
+            content=content, condition_label=condition_label, location=location
         )
-    return int(match["percentage"])
+        already_read = results.get(cell)
+        if already_read is not None:
+            raise ValueError(
+                f"{location}: this cell is already filled by {already_read.url}."
+            )
+        results[cell] = result
+    return results
 
 
-def _read_method_key(*, run: Run) -> str:
-    if run.job_type == "gpi":
-        return "gpi"
-    if run.job_type not in ("bc", "dp"):
-        raise ValueError(f"Run {run.url} has unknown job type {run.job_type}.")
-    augmentation = run.config["augmentation"]
-    if augmentation is None:
-        return run.job_type
-    # The two augmentations are told apart by the stage they configure: CCIL
-    # relabels transitions, TaCIL creates new data.
-    if "labels" in augmentation:
-        return "ccil"
-    if "data" in augmentation:
-        return f"tacil-{run.job_type}"
-    raise ValueError(f"Run {run.url} has an unknown augmentation.")
+def _read_condition_label(*, text: str, location: str) -> str:
+    if text not in CONDITION_LABELS:
+        raise ValueError(
+            f"{location}: unknown condition {text}. "
+            f"Known are {', '.join(CONDITION_LABELS)}."
+        )
+    return text
 
 
-def _read_result(*, run: Run, url: str) -> Result:
-    key_prefix = f"{EVALUATION_STAGE_NAME}/{_read_condition_label(run=run)}"
+def _read_cell(
+    *, content: str, condition_label: str, location: str
+) -> tuple[Cell, Result]:
+    fields = content.split()
+    if len(fields) != 4 + 1:
+        raise ValueError(
+            f"{location}: expected 5 fields "
+            "(percentage, method, mean, standard deviation, URL), "
+            f"got {len(fields)}."
+        )
+    percentage_text, method_key, mean_text, standard_deviation_text, url = fields
+
+    if not percentage_text.isdigit() or int(percentage_text) not in DATASET_PERCENTAGES:
+        raise ValueError(
+            f"{location}: unknown dataset percentage {percentage_text}. Known are "
+            f"{', '.join(str(percentage) for percentage in DATASET_PERCENTAGES)}."
+        )
+    if method_key not in {method.key for method in METHODS}:
+        raise ValueError(
+            f"{location}: unknown method {method_key}. Known are "
+            f"{', '.join(method.key for method in METHODS)}."
+        )
+
+    return (
+        Cell(
+            condition_label=condition_label,
+            dataset_percentage=int(percentage_text),
+            method_key=method_key,
+        ),
+        Result(
+            url=url,
+            reward_mean=_read_number(text=mean_text, location=location),
+            reward_standard_deviation=_read_number(
+                text=standard_deviation_text, location=location
+            ),
+        ),
+    )
+
+
+def _read_number(*, text: str, location: str) -> float:
     try:
-        reward_mean = run.summary[f"{key_prefix}/reward_mean"]
-        reward_standard_deviation = run.summary[f"{key_prefix}/reward_std"]
-    except KeyError as error:
-        raise ValueError(f"Run {url} carries no evaluation summary.") from error
-    return Result(
-        url=url,
-        run_name=run.name,
-        reward_mean=reward_mean,
-        reward_standard_deviation=reward_standard_deviation,
-    )
-
-
-def _log_missing_cells(*, results: dict[Cell, Result]) -> None:
-    cell_count = len(CONDITION_LABELS) * len(DATASET_PERCENTAGES) * len(METHODS)
-    logger.info(
-        "Filled %d of %d cells, %d still missing.",
-        len(results),
-        cell_count,
-        cell_count - len(results),
-    )
+        return float(text)
+    except ValueError as error:
+        raise ValueError(f"{location}: {text} is not a number.") from error
 
 
 def _render_page(*, results: dict[Cell, Result]) -> str:
@@ -324,7 +300,7 @@ def _render_cell(*, result: Result | None) -> str:
     )
     return (
         f'<td class="reward" style="{style}">'
-        f'<a href="{escape(result.url)}" title="{escape(result.run_name)}">'
+        f'<a href="{escape(result.url)}">'
         f'<span class="mean">{result.reward_mean:.3f}</span>'
         f'<span class="deviation">±{result.reward_standard_deviation:.3f}</span>'
         f"</a></td>"
