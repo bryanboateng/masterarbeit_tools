@@ -19,7 +19,8 @@ logging.basicConfig(
 logger = logging.getLogger(name=__name__)
 
 RESULTS_FILE_PATH = Path(__file__).parent / "results.txt"
-OUTPUT_FILE_PATH = Path(__file__).parent / "results.html"
+# The name GitHub Pages serves at the root of the site.
+OUTPUT_FILE_PATH = Path(__file__).parent / "index.html"
 
 
 @dataclass(frozen=True)

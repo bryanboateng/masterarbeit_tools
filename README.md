@@ -20,8 +20,9 @@ Then build the page:
 
     uv run create_results_page.py
 
-It writes `results.html` beside itself and reports how many cells are still
-missing. An unknown method, a percentage that is not 10, 25, 50 or 100, or a
+It writes `index.html` beside itself and reports how many cells are still
+missing. That file is the hosted page, so commit it and push: GitHub Pages
+serves it at the root of the site. An unknown method, a percentage that is not 10, 25, 50 or 100, or a
 cell filled twice stops the build and names the line.
 
 ## Cluster

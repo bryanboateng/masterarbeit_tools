@@ -11,14 +11,17 @@
 #   uv run create_results_page.py
 
 [grippy_undisturbed]
-10 tacil-dp 0.351 0.360 https://wandb.ai/bryanboateng-team/…/runs/3ohsiome
+10 tacil-dp 0.515 0.433 https://wandb.ai/bryanboateng-team/2026-08-18-10-tacil-dp-bounded-grippy_undisturbed/runs/vmrkhk8i/overview?nw=nwuserbryanboateng
+10 gpi 0.572 0.325 https://wandb.ai/bryanboateng-team/2026-08-18-10-gpi-grippy_undisturbed/runs/umi2m10l/overview?nw=nwuserbryanboateng
 
 [grippy_low_disturbance]
+10 gpi 0.689 0.325 https://wandb.ai/bryanboateng-team/2026-08-18-10-gpi-grippy_low_disturbance/runs/gajuzoxx/overview?nw=nwuserbryanboateng
+10 tacil-dp 0.445 0.415 https://wandb.ai/bryanboateng-team/2026-08-18-10-tacil-dp-bounded-grippy_low_disturbance/sweeps/s414raqb/runs/sm0hr9g7/overview?nw=nwuserbryanboateng
 25 tacil-dp 0.752 0.386 https://wandb.ai/bryanboateng-team/2026-08-16-replay-variance-25-tacil-dp-bounded-grippy_low_disturbance/runs/tv6k6upt?nw=nwuserbryanboateng
 25 dp 0.529 0.359 https://wandb.ai/bryanboateng-team/2026-08-05-sub025-dp-grippy_low_disturbance?nw=nwuserbryanboateng
 25 bc 0.266 0.344 https://wandb.ai/bryanboateng-team/2026-08-05-sub025-bc-grippy_low_disturbance/runs/dmcn6g2i/overview?nw=nwuserbryanboateng
 25 tacil-bc 0.316 0.362 https://wandb.ai/bryanboateng-team/2026-08-05-sub025-tacil-bc-grippy_low_disturbance/runs/hkdyha52/overview?nw=nwuserbryanboateng
-25 gpi 0.470 0.227 https://wandb.ai/bryanboateng-team/2026-08-05-sub025-gpi-grippy_low_disturbance/runs/oo4jz0ug/overview?nw=nwuserbryanboateng
+25 gpi 0.807 0.317 https://wandb.ai/bryanboateng-team/2026-08-18-25-gpi-grippy_low_disturbance/runs/o2vc62cc/overview?nw=nwuserbryanboateng
 25 ccil 0.428 0.388 https://wandb.ai/bryanboateng-team/2026-08-05-sub025-ccil-bc-euler-grippy_low_disturbance/runs/uvrhpbah/overview?nw=nwuserbryanboateng
 
 [grippy_high_disturbance]
