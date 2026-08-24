@@ -18,6 +18,10 @@ set -euo pipefail
 
 cd /scratch/boateng/imitation_learning_and_data_control_augmentation
 
+# Tag every run with its dataset size and method, so the single final project
+# stays groupable and filterable in wandb.
+export WANDB_TAGS="${PCT}pct,${METHOD}"
+
 COMMAND=$(uv run --no-sync python -m scripts.sweep.launch_final_runs \
     --dataset-percentage "$PCT" --method "$METHOD" --sweep-id "$SWEEP_ID" \
     | grep '^python -m' | sed -n "${SLURM_ARRAY_TASK_ID}p")
