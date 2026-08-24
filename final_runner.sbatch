@@ -18,6 +18,10 @@ set -euo pipefail
 
 cd /scratch/boateng/imitation_learning_and_data_control_augmentation
 
+# Land every final run in the team entity (where the sweeps live), regardless
+# of the login's default entity.
+export WANDB_ENTITY="bryanboateng-team"
+
 # Tag every run with its dataset size and method, so the single final project
 # stays groupable and filterable in wandb.
 export WANDB_TAGS="${PCT}pct,${METHOD}"
