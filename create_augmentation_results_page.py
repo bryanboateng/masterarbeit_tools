@@ -3,11 +3,11 @@
 Unlike `create_results_page.py` (which reads a hand-written table), this pulls
 the final runs of the project below, groups them into (dataset %, method,
 config), and keeps each method's best config (chosen once by the validation
-condition). One table per dataset size: methods are rows (split into the BC and
-DP+GPI families), the six evaluation conditions are columns of reward mean ±
-std, and two trailing columns give the augmentation size (invented transitions
-as a percent of the expert data) and the realised chain length. Grippy columns
-use a blue scale, slippery ones an orange scale.
+condition). One table per evaluation condition: rows are dataset sizes, columns
+are methods split into the BC and DP+GPI families, and each cell carries the
+reward mean ± std, the augmentation size (invented transitions as a percent of
+the expert data) and the realised chain length. Grippy conditions use a blue
+scale, slippery ones an orange scale.
 
     uv run create_augmentation_results_page.py
 """
@@ -59,14 +59,14 @@ _CCIL = (
 _GPI = ("policy.progression_weight", "policy.attraction_weight", "policy.plan_length")
 
 METHODS = (
-    Method("bc-noaug", "BC", "BC, none", ()),
-    Method("ccil-bc", "BC", "BC, CCIL", _CCIL),
-    Method("tacil-bc-bounded", "BC", "BC, TACIL bounded", _TACIL_BOUNDED),
-    Method("tacil-bc-unbounded", "BC", "BC, TACIL unbounded", _TACIL_UNBOUNDED),
+    Method("bc-noaug", "BC", "none", ()),
+    Method("ccil-bc", "BC", "CCIL", _CCIL),
+    Method("tacil-bc-bounded", "BC", "TACIL bounded", _TACIL_BOUNDED),
+    Method("tacil-bc-unbounded", "BC", "TACIL unbounded", _TACIL_UNBOUNDED),
     Method("gpi", "DP+GPI", "GPI", _GPI),
-    Method("dp-noaug", "DP+GPI", "DP, none", ()),
-    Method("tacil-dp-bounded", "DP+GPI", "DP, TACIL bounded", _TACIL_BOUNDED),
-    Method("tacil-dp-unbounded", "DP+GPI", "DP, TACIL unbounded", _TACIL_UNBOUNDED),
+    Method("dp-noaug", "DP+GPI", "none", ()),
+    Method("tacil-dp-bounded", "DP+GPI", "TACIL bounded", _TACIL_BOUNDED),
+    Method("tacil-dp-unbounded", "DP+GPI", "TACIL unbounded", _TACIL_UNBOUNDED),
 )
 FAMILIES = ("BC", "DP+GPI")
 
@@ -75,7 +75,6 @@ CONDITION_LABELS = tuple(
     for floor in ("grippy", "slippery")
     for disturbance in ("undisturbed", "low_disturbance", "high_disturbance")
 )
-DISTURBANCE_HEADS = ("undisturbed", "low", "high")
 
 _COLORMAPS = {"grippy": colormaps["Blues"], "slippery": colormaps["Oranges"]}
 _DARK_INK = "#0b0b0b"
@@ -210,8 +209,8 @@ def _render_page(
     *, percentages: list[int], best: dict[tuple[int, str], BestConfig]
 ) -> str:
     tables = "\n".join(
-        _render_dataset_table(percentage=percentage, best=best)
-        for percentage in percentages
+        _render_condition_table(condition=condition, percentages=percentages, best=best)
+        for condition in CONDITION_LABELS
     )
     return f"""<!doctype html>
 <html lang="en">
@@ -223,113 +222,108 @@ def _render_page(
 </head>
 <body>
 <h1>Augmentation results</h1>
-<p class="note">Reward mean ± std over 3 seeds. In each condition column the best
-method of each family (BC, DP+GPI) is bold. <b>synth</b> = invented transitions
-as a percent of the expert data; <b>len</b> = chain length, median (p10–p90).</p>
+<p class="note">Reward mean ± std over 3 seeds; best of each family (BC, DP+GPI)
+bold. <b>synth</b> = invented transitions as a percent of the expert data;
+<b>len</b> = chain length, median (p10–p90).</p>
 {tables}
 </body>
 </html>
 """
 
 
-def _render_dataset_table(
-    *, percentage: int, best: dict[tuple[int, str], BestConfig]
-) -> str:
-    # For each condition, the winning method of each family (to make it bold).
-    winners: dict[str, dict[str, str]] = {}
-    for condition in CONDITION_LABELS:
-        winners[condition] = {}
-        for family in FAMILIES:
-            winner, winning_value = None, -1.0
-            for method in METHODS:
-                if method.family != family:
-                    continue
-                config = best.get((percentage, method.tag))
-                if config and condition in config.rewards:
-                    value = config.rewards[condition][0]
-                    if value > winning_value:
-                        winning_value, winner = value, method.tag
-            if winner is not None:
-                winners[condition][family] = winner
+def _render_head() -> str:
+    family_headings = ""
+    label_headings = ""
+    for index, family in enumerate(FAMILIES):
+        methods = [m for m in METHODS if m.family == family]
+        if index > 0:
+            family_headings += '<th rowspan="2" class="spacer"></th>'
+        family_headings += f'<th colspan="{len(methods)}" class="family">{family}</th>'
+        label_headings += "".join(
+            f'<th class="label">{method.label}</th>' for method in methods
+        )
+    return f"""<thead>
+<tr><th rowspan="2">Data</th>{family_headings}</tr>
+<tr>{label_headings}</tr>
+</thead>"""
 
-    column_count = 1 + len(CONDITION_LABELS) + 2
-    body = ""
-    for family in FAMILIES:
-        body += f'<tr class="group"><th colspan="{column_count}">{family}</th></tr>\n'
-        for method in (m for m in METHODS if m.family == family):
-            body += _render_method_row(
-                percentage=percentage, method=method, best=best, winners=winners
-            )
-    return f"""<h2>{percentage} % of the expert data</h2>
+
+def _render_condition_table(
+    *, condition: str, percentages: list[int], best: dict[tuple[int, str], BestConfig]
+) -> str:
+    colormap = _COLORMAPS[condition.split("_")[0]]
+    rows = "\n".join(
+        _render_row(
+            condition=condition, percentage=percentage, best=best, colormap=colormap
+        )
+        for percentage in percentages
+    )
+    return f"""<h2>{condition.replace("_", " ")}</h2>
 <div class="table-wrapper">
 <table>
 {_render_head()}
 <tbody>
-{body}</tbody>
+{rows}
+</tbody>
 </table>
 </div>"""
 
 
-def _render_head() -> str:
-    disturbance_heads = "".join(f"<th>{head}</th>" for head in DISTURBANCE_HEADS)
-    return f"""<thead>
-<tr>
-  <th rowspan="2" class="method-col">Method</th>
-  <th colspan="3" class="floor grippy">grippy floor</th>
-  <th colspan="3" class="floor slippery">slippery floor</th>
-  <th rowspan="2">synth</th>
-  <th rowspan="2">len</th>
-</tr>
-<tr>{disturbance_heads}{disturbance_heads}</tr>
-</thead>"""
-
-
-def _render_method_row(
+def _render_row(
     *,
+    condition: str,
     percentage: int,
-    method: Method,
     best: dict[tuple[int, str], BestConfig],
-    winners: dict[str, dict[str, str]],
+    colormap,
 ) -> str:
-    config = best.get((percentage, method.tag))
-    if config is not None:
-        label = f'<a href="{escape(config.url)}" target="_blank" rel="noopener">{method.label}</a>'
-    else:
-        label = method.label
-    cells = f'<th class="method-col">{label}</th>'
-    for condition in CONDITION_LABELS:
-        cells += _render_reward_cell(
-            config=config,
-            condition=condition,
-            is_best=winners[condition].get(method.family) == method.tag,
-            colormap=_COLORMAPS[condition.split("_")[0]],
-        )
+    family_best: dict[str, str] = {}
+    for family in FAMILIES:
+        winner, winning_value = None, -1.0
+        for method in METHODS:
+            if method.family != family:
+                continue
+            config = best.get((percentage, method.tag))
+            if config and condition in config.rewards:
+                value = config.rewards[condition][0]
+                if value > winning_value:
+                    winning_value, winner = value, method.tag
+        if winner is not None:
+            family_best[family] = winner
 
-    if config is not None and config.invented_percent is not None:
-        synth = f"{config.invented_percent:.0f}%"
-    else:
-        synth = '<span class="muted">—</span>'
-    if config is not None and config.length is not None:
-        p10, median, p90 = config.length
-        length = f"{median:.0f} <span class='muted'>({p10:.0f}–{p90:.0f})</span>"
-    else:
-        length = '<span class="muted">—</span>'
-    cells += f'<td class="aug">{synth}</td><td class="aug">{length}</td>'
-    return f"<tr>{cells}</tr>\n"
+    cells = ""
+    for index, family in enumerate(FAMILIES):
+        if index > 0:
+            cells += '<td class="spacer"></td>'
+        for method in (m for m in METHODS if m.family == family):
+            cells += _render_cell(
+                config=best.get((percentage, method.tag)),
+                condition=condition,
+                is_best=family_best.get(family) == method.tag,
+                colormap=colormap,
+            )
+    return f"<tr><th>{percentage} %</th>{cells}</tr>"
 
 
-def _render_reward_cell(
+def _render_cell(
     *, config: BestConfig | None, condition: str, is_best: bool, colormap
 ) -> str:
     if config is None or condition not in config.rewards:
         return '<td class="empty"></td>'
     mean, standard_deviation = config.rewards[condition]
     fill = to_hex(c=colormap(min(max(mean, 0.0), 1.0)))
+    extra = ""
+    if config.invented_percent is not None:
+        extra += f'<span class="synth">synth {config.invented_percent:.0f}%</span>'
+    if config.length is not None:
+        p10, median, p90 = config.length
+        extra += f'<span class="len">len {median:.0f} ({p10:.0f}–{p90:.0f})</span>'
     best_class = " best" if is_best else ""
     return (
         f'<td class="reward{best_class}" style="--fill:{fill};--ink:{_ink(fill=fill)}">'
+        f'<a href="{escape(config.url)}" target="_blank" rel="noopener">'
         f'<span class="mean">{mean:.3f}</span>'
-        f'<span class="deviation">±{standard_deviation:.3f}</span></td>'
+        f'<span class="deviation">±{standard_deviation:.3f}</span>'
+        f"{extra}</a></td>"
     )
 
 
@@ -361,51 +355,54 @@ _STYLE = """
   color-scheme: light dark;
   --background: #ffffff; --surface: #f6f7f9; --border: #d9dce1;
   --text: #14161a; --muted: #6b7280;
-  --grippy-tint: #eef4fb; --slippery-tint: #fdf0e6;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #16181d; --surface: #1e2128; --border: #333842;
     --text: #e8eaee; --muted: #9aa1ac;
-    --grippy-tint: #1b2430; --slippery-tint: #2a2119;
   }
 }
 body {
-  margin: 0 auto; padding: 2rem 1.5rem 3rem; max-width: 70rem;
+  margin: 0 auto; padding: 2rem 1.5rem 3rem; max-width: 74rem;
   background: var(--background); color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.4;
 }
 h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
-h2 { font-size: 1.05rem; margin: 2.2rem 0 0.5rem; font-weight: 600; }
+h2 { font-size: 1.05rem; margin: 2.4rem 0 0.6rem; font-weight: 600; }
 .note { color: var(--muted); font-size: 0.82rem; margin: 0 0 0.6rem; max-width: 52rem; }
 .note b { color: var(--text); font-weight: 600; }
 .table-wrapper { overflow-x: auto; }
 table {
-  border-collapse: collapse; width: 100%; min-width: 50rem; font-size: 0.82rem;
+  border-collapse: collapse; table-layout: fixed; width: 100%;
+  min-width: 58rem; font-size: 0.82rem;
 }
-th, td { border: 1px solid var(--border); text-align: center; }
-thead th { background: var(--surface); padding: 0.3rem 0.5rem; font-weight: 600; white-space: nowrap; }
-th.floor.grippy { background: var(--grippy-tint); }
-th.floor.slippery { background: var(--slippery-tint); }
-tbody th { background: var(--surface); padding: 0.35rem 0.6rem; font-weight: 600; }
-th.method-col { text-align: left; white-space: nowrap; }
-th.method-col a { color: inherit; text-decoration: none; }
-th.method-col a:hover { text-decoration: underline; }
-tr.group th {
-  text-align: left; background: var(--background); border-left: none; border-right: none;
-  font-size: 0.9rem; padding: 0.7rem 0.2rem 0.25rem;
+th, td { border: 1px solid var(--border); padding: 0; text-align: center; }
+thead th, tbody th {
+  background: var(--surface); color: var(--text);
+  padding: 0.3rem 0.5rem; font-weight: 600; white-space: nowrap;
 }
-td.reward {
-  background: var(--fill); color: var(--ink); padding: 0.3rem 0.4rem; line-height: 1.15;
+th.family { font-size: 0.88rem; }
+col.label-column { width: 4rem; }
+td { height: 4.6rem; }
+td.reward { background: var(--fill); color: var(--ink); }
+td a {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.12rem; height: 100%; padding: 0.4rem 0.3rem;
+  color: inherit; text-decoration: none;
 }
-td.reward .mean, td.reward .deviation { display: block; }
-.mean { font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-td.best .mean { font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
-.deviation { font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+td a:hover { outline: 2px solid var(--text); outline-offset: -2px; }
 td.empty { background: repeating-linear-gradient(
-  45deg, transparent, transparent 5px, var(--surface) 5px, var(--surface) 10px); }
-td.aug { padding: 0.3rem 0.5rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.muted { color: var(--muted); }
+  45deg, transparent, transparent 6px, var(--surface) 6px, var(--surface) 12px); }
+.mean { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+td.best .mean { font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.deviation { font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.synth, .len {
+  display: block; font-size: 0.68rem; opacity: 0.8;
+  font-variant-numeric: tabular-nums; line-height: 1.25;
+}
+.synth { margin-top: 0.2rem; }
+/* The gap column that holds the two families apart. */
+.spacer { width: 1.4rem; border: none; background: var(--background); }
 """
 
 
