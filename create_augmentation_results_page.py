@@ -87,7 +87,21 @@ _LIGHT_INK = "#ffffff"
 class BestConfig:
     rewards: dict[str, tuple[float, float]]  # condition -> (mean, standard deviation)
     length: tuple[float, float, float] | None  # (p10, median, p90)
+    # Invented (synthetic) transitions as a percentage of the recorded expert
+    # transitions -- the copied expert run-out is not counted.
+    invented_percent: float | None
     url: str
+
+
+def _invented_and_expert(summary) -> tuple[float | None, float | None]:
+    """Invented and recorded-expert transition counts, whichever the augmentation
+    logged (TACIL and CCIL use different keys)."""
+    invented = summary.get("2_data/5_dataset/2_invented_transitions")
+    expert = summary.get("2_data/5_dataset/1_recorded_expert_transitions")
+    if invented is None or expert is None:
+        invented = summary.get("2_data/3_dataset/synthetic_transition_count")
+        expert = summary.get("2_data/1_labels/expert_transition_count")
+    return invented, expert
 
 
 def main() -> None:
@@ -140,7 +154,12 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
         signature = tuple(_get(run.config, key) for key in method.param_keys)
         group = groups.setdefault(
             (pct, tag, signature),
-            {"rewards": {c: [] for c in CONDITION_LABELS}, "len": [], "url": run.url},
+            {
+                "rewards": {c: [] for c in CONDITION_LABELS},
+                "len": [],
+                "aug": [],
+                "url": run.url,
+            },
         )
         for condition in CONDITION_LABELS:
             value = run.summary.get(f"{STAGE}/{condition}/reward_mean")
@@ -151,6 +170,9 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
         )
         if all(v is not None for v in triple):
             group["len"].append(triple)
+        invented, expert = _invented_and_expert(run.summary)
+        if invented is not None and expert:
+            group["aug"].append(100.0 * invented / expert)
 
     # Keep each method's best config, chosen by the selection condition's mean.
     best: dict[tuple[int, str], BestConfig] = {}
@@ -168,6 +190,9 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
         if group["len"]:
             columns = list(zip(*group["len"]))
             length = tuple(sum(c) / len(c) for c in columns)  # type: ignore[assignment]
+        invented_percent = (
+            sum(group["aug"]) / len(group["aug"]) if group["aug"] else None
+        )
         best[key] = BestConfig(
             rewards={
                 condition: _mean_std(values)
@@ -175,6 +200,7 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
                 if values
             },
             length=length,
+            invented_percent=invented_percent,
             url=group["url"],
         )
     return sorted(percentages), best
@@ -288,12 +314,15 @@ def _render_cell(
         return '<td class="empty"></td>'
     mean, standard_deviation = config.rewards[condition]
     fill = to_hex(c=colormap(min(max(mean, 0.0), 1.0)))
-    length_line = ""
+    annotations = []
+    if config.invented_percent is not None:
+        annotations.append(f"synth {config.invented_percent:.0f}%")
     if config.length is not None:
         p10, median, p90 = config.length
-        length_line = (
-            f'<span class="length">len {median:.0f} ({p10:.0f}–{p90:.0f})</span>'
-        )
+        annotations.append(f"len {median:.0f} ({p10:.0f}–{p90:.0f})")
+    length_line = (
+        f'<span class="length">{" · ".join(annotations)}</span>' if annotations else ""
+    )
     best_class = " best" if is_best else ""
     return (
         f'<td class="reward{best_class}" style="--fill:{fill};--ink:{_ink(fill=fill)}">'
