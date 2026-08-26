@@ -227,6 +227,11 @@ def _render_page(
 <body>
 <h1>Augmentation results</h1>
 {tables}
+<h2 class="section">Augmentation size</h2>
+<p class="note">Invented (synthetic) transitions as a percent of the recorded
+expert transitions, and the realised chain length (median, p10–p90). Same across
+conditions, so shown once.</p>
+{_render_augmentation_table(percentages=percentages, best=best)}
 </body>
 </html>
 """
@@ -314,23 +319,69 @@ def _render_cell(
         return '<td class="empty"></td>'
     mean, standard_deviation = config.rewards[condition]
     fill = to_hex(c=colormap(min(max(mean, 0.0), 1.0)))
-    annotations = []
-    if config.invented_percent is not None:
-        annotations.append(f"synth {config.invented_percent:.0f}%")
-    if config.length is not None:
-        p10, median, p90 = config.length
-        annotations.append(f"len {median:.0f} ({p10:.0f}–{p90:.0f})")
-    length_line = (
-        f'<span class="length">{" · ".join(annotations)}</span>' if annotations else ""
-    )
     best_class = " best" if is_best else ""
     return (
         f'<td class="reward{best_class}" style="--fill:{fill};--ink:{_ink(fill=fill)}">'
         f'<a href="{escape(config.url)}" target="_blank" rel="noopener">'
         f'<span class="mean">{mean:.3f}</span>'
-        f'<span class="deviation">±{standard_deviation:.3f}</span>'
-        f"{length_line}</a></td>"
+        f'<span class="deviation">±{standard_deviation:.3f}</span></a></td>'
     )
+
+
+def _render_augmentation_table(
+    *, percentages: list[int], best: dict[tuple[int, str], BestConfig]
+) -> str:
+    methods = [m for m in METHODS if m.label == "CCIL" or m.label.startswith("TACIL")]
+    family_headings = ""
+    label_headings = ""
+    for family in FAMILIES:
+        family_methods = [m for m in methods if m.family == family]
+        if not family_methods:
+            continue
+        if family_headings:
+            family_headings += '<th rowspan="2" class="spacer"></th>'
+        family_headings += (
+            f'<th colspan="{len(family_methods)}" class="family">{family}</th>'
+        )
+        label_headings += "".join(
+            f'<th class="label">{method.label}</th>' for method in family_methods
+        )
+
+    rows = ""
+    for percentage in percentages:
+        cells = ""
+        for family in FAMILIES:
+            family_methods = [m for m in methods if m.family == family]
+            if not family_methods:
+                continue
+            if cells:
+                cells += '<td class="spacer"></td>'
+            for method in family_methods:
+                config = best.get((percentage, method.tag))
+                lines = ""
+                if config and config.invented_percent is not None:
+                    lines += (
+                        f'<span class="synth">synth {config.invented_percent:.0f}%</span>'
+                    )
+                if config and config.length is not None:
+                    p10, median, p90 = config.length
+                    lines += (
+                        f'<span class="len">len {median:.0f} ({p10:.0f}–{p90:.0f})</span>'
+                    )
+                content = lines or '<span class="muted">—</span>'
+                cells += f'<td class="aug">{content}</td>'
+        rows += f"<tr><th>{percentage} %</th>{cells}</tr>\n"
+
+    return f"""<div class="table-wrapper">
+<table>
+<thead>
+<tr><th rowspan="2">Data</th>{family_headings}</tr>
+<tr>{label_headings}</tr>
+</thead>
+<tbody>
+{rows}</tbody>
+</table>
+</div>"""
 
 
 def _ink(*, fill: str) -> str:
@@ -374,8 +425,12 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.4;
 }
 h1 { font-size: 1.5rem; margin: 0 0 0.75rem; }
-h2 { font-size: 1rem; margin: 1.6rem 0 0.4rem; font-weight: 600; }
-.table-wrapper { overflow-x: auto; }
+h2 { font-size: 1rem; margin: 2rem 0 0.5rem; font-weight: 600; }
+h2.section {
+  margin-top: 2.6rem; padding-top: 1.2rem; border-top: 1px solid var(--border);
+}
+.note { color: var(--muted); font-size: 0.8rem; margin: 0 0 0.6rem; max-width: 46rem; }
+.table-wrapper { overflow-x: auto; margin-bottom: 0.4rem; }
 table {
   border-collapse: collapse; table-layout: fixed; width: 100%;
   min-width: 46rem; font-size: 0.82rem;
@@ -398,7 +453,12 @@ td.empty { background: repeating-linear-gradient(
 .mean { font-size: 0.92rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 td.best .mean { font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .deviation { font-size: 0.76rem; font-variant-numeric: tabular-nums; }
-.length { font-size: 0.66rem; opacity: 0.75; font-variant-numeric: tabular-nums; margin-top: 1px; }
+/* The augmentation-size table below the reward tables. */
+td.aug { padding: 0.4rem 0.45rem; line-height: 1.3; }
+.synth, .len { display: block; font-variant-numeric: tabular-nums; }
+.synth { font-weight: 600; }
+.len { font-size: 0.76rem; color: var(--muted); }
+.muted { color: var(--muted); }
 /* The gap column that holds the two families apart. */
 .spacer { width: 1.2rem; border: none; background: var(--background); }
 """
