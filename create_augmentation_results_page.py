@@ -315,8 +315,8 @@ def _render_cell(
     else:
         synth_span = '<span class="synth">&nbsp;</span>'
     if config.length is not None:
-        p10, median, p90 = config.length
-        len_span = f'<span class="len">len {median:.0f} ({p10:.0f}–{p90:.0f})</span>'
+        _p10, median, _p90 = config.length
+        len_span = f'<span class="len">median len {median:.0f}</span>'
     else:
         len_span = '<span class="len">&nbsp;</span>'
     extra = synth_span + len_span
