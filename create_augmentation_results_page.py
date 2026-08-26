@@ -85,7 +85,7 @@ _LIGHT_INK = "#ffffff"
 
 @dataclass(frozen=True)
 class BestConfig:
-    rewards: dict[str, tuple[float, float]]  # condition -> (mean, standard error)
+    rewards: dict[str, tuple[float, float]]  # condition -> (mean, standard deviation)
     length: tuple[float, float, float] | None  # (p10, median, p90)
     url: str
 
@@ -99,13 +99,14 @@ def main() -> None:
     logger.info("Wrote %s (%d dataset sizes).", OUTPUT_FILE_PATH, len(percentages))
 
 
-def _mean_se(values: list[float]) -> tuple[float, float]:
+def _mean_std(values: list[float]) -> tuple[float, float]:
+    """Mean and the (sample) standard deviation across the seeds."""
     n = len(values)
     mean = sum(values) / n
     if n < 2:
         return mean, 0.0
     variance = sum((x - mean) ** 2 for x in values) / (n - 1)
-    return mean, math.sqrt(variance) / math.sqrt(n)
+    return mean, math.sqrt(variance)
 
 
 def _get(config: dict, dotted: str):
@@ -169,7 +170,7 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
             length = tuple(sum(c) / len(c) for c in columns)  # type: ignore[assignment]
         best[key] = BestConfig(
             rewards={
-                condition: _mean_se(values)
+                condition: _mean_std(values)
                 for condition, values in group["rewards"].items()
                 if values
             },
@@ -285,7 +286,7 @@ def _render_cell(
 ) -> str:
     if config is None or condition not in config.rewards:
         return '<td class="empty"></td>'
-    mean, standard_error = config.rewards[condition]
+    mean, standard_deviation = config.rewards[condition]
     fill = to_hex(c=colormap(min(max(mean, 0.0), 1.0)))
     length_line = ""
     if config.length is not None:
@@ -298,7 +299,7 @@ def _render_cell(
         f'<td class="reward{best_class}" style="--fill:{fill};--ink:{_ink(fill=fill)}">'
         f'<a href="{escape(config.url)}" target="_blank" rel="noopener">'
         f'<span class="mean">{mean:.3f}</span>'
-        f'<span class="deviation">±{standard_error:.3f}</span>'
+        f'<span class="deviation">±{standard_deviation:.3f}</span>'
         f"{length_line}</a></td>"
     )
 
