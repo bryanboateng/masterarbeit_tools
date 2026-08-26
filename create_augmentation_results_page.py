@@ -222,9 +222,6 @@ def _render_page(
 </head>
 <body>
 <h1>Augmentation results</h1>
-<p class="note">Reward mean ± std over 3 seeds; best of each family (BC, DP+GPI)
-bold. <b>synth</b> = invented transitions as a percent of the expert data;
-<b>len</b> = chain length, median (p10–p90).</p>
 {tables}
 </body>
 </html>
@@ -311,12 +308,18 @@ def _render_cell(
         return '<td class="empty"></td>'
     mean, standard_deviation = config.rewards[condition]
     fill = to_hex(c=colormap(min(max(mean, 0.0), 1.0)))
-    extra = ""
+    # Every cell keeps a synth and a len line, blank where a method has none, so
+    # the mean and deviation lines stay aligned across the whole row.
     if config.invented_percent is not None:
-        extra += f'<span class="synth">synth {config.invented_percent:.0f}%</span>'
+        synth_span = f'<span class="synth">synth {config.invented_percent:.0f}%</span>'
+    else:
+        synth_span = '<span class="synth">&nbsp;</span>'
     if config.length is not None:
         p10, median, p90 = config.length
-        extra += f'<span class="len">len {median:.0f} ({p10:.0f}–{p90:.0f})</span>'
+        len_span = f'<span class="len">len {median:.0f} ({p10:.0f}–{p90:.0f})</span>'
+    else:
+        len_span = '<span class="len">&nbsp;</span>'
+    extra = synth_span + len_span
     best_class = " best" if is_best else ""
     return (
         f'<td class="reward{best_class}" style="--fill:{fill};--ink:{_ink(fill=fill)}">'
