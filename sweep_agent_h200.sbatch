@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=sweep-agent
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+#SBATCH --job-name=sweep-agent-h200
+#SBATCH --partition=h200_short
+#SBATCH --gres=gpu:h200:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=24:00:00
+#SBATCH --time=04:00:00
 #SBATCH --output=/scratch/%u/logs/%x.%A_%a.out
 #SBATCH --array=1-4
 
