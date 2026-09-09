@@ -1,11 +1,11 @@
-"""Score an exported policy the way CCIL scores its own.
+"""Score a policy exported by the experiment repo, as CCIL scores its own.
 
-Run this with the CCIL venv (Python 3.8), not the experiment repo:
+Runs under the CCIL venv (Python 3.8), not the experiment repo's:
 
-    LD_LIBRARY_PATH=$HOME/.mujoco/mujoco210/bin:/usr/lib/nvidia \
-      ~/uni/masterarbeit/CCIL/.venv/bin/python evaluate_ccil_policy.py \
-      --ccil-directory ~/uni/masterarbeit/CCIL \
-      --task hopper --policy /path/to/policy.pt --seed 40
+    set -x LD_LIBRARY_PATH $HOME/.mujoco/mujoco210/bin /usr/lib/nvidia
+    <ccil>/.venv/bin/python evaluate_ccil_policy.py \
+      --ccil-directory <ccil> --task hopper \
+      --policy <repo>/output/replication/hopper-ccil-seed40.pt --seed 40
 """
 
 import argparse
