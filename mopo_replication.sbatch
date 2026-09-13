@@ -1,13 +1,19 @@
 #!/bin/bash
 #SBATCH --job-name=mopo-replication
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+#SBATCH --partition=gpu_short
+#SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=/scratch/%u/logs/%x.%A_%a.out
 #SBATCH --array=1-3
 # Checks the MOPO port against the scores OfflineRL-Kit publishes.
+#
+# An a100 rather than whatever the gpu partition hands out: the learning step
+# is bundled by a compiler that reaches the card through Triton, and Triton
+# serves compute capability 7.0 and newer. The P100 nodes are 6.0. Without
+# the bundling a step takes about twice as long, which no longer fits.
+#
 # One array task = one D4RL task, all at seed 0. Submit with:
 #   sbatch /scratch/boateng/masterarbeit_tools/mopo_replication.sbatch
 # Download the datasets on the frontend first, see the README section.
