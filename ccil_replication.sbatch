@@ -57,5 +57,5 @@ echo "task ${TASK}, seed ${SEED}"
 uv run --no-sync python -m scripts.data.augmentation.ccil.replication.train \
     --ccil-directory-path="/scratch/$USER/CCIL" \
     --wandb-project=ccil-replication \
-    --tasks="('${TASK}',)" \
-    --seeds="(${SEED},)"
+    --tasks="${TASK}" \
+    --seeds="${SEED}"
