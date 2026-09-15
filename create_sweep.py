@@ -42,7 +42,7 @@ METHOD_LEADING_ARGUMENTS: dict[MethodLabel, list[str]] = {
         # two parameters below it as the ones to tune.
         "--augmentation.dynamics.lipschitz-type=spectral_normalization",
         # A quantile carries over between datasets of different size.
-        "--augmentation.labels.rejection=quantile",
+        "--augmentation.labels.rejection.rule=quantile",
     ],
     "gpi": [],
     "mopo": [],
@@ -122,7 +122,7 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
             "min": 0.5,
             "max": 5.0,
         },
-        "augmentation.labels.rejection_limit": {
+        "augmentation.labels.rejection.limit": {
             "distribution": "uniform",
             "min": 0.0,
             "max": 1.0,
