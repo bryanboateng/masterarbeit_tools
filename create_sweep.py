@@ -94,8 +94,12 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
         "augmentation.dynamics.lipschitz_type": {
             "values": ["soft_sampling", "spectral_normalization", "none"]
         },
+        # A magnitude, so a range rather than stand-in points. CCIL fixes it
+        # per task, at 2.0 on hopper, and never sweeps it.
         "augmentation.dynamics.lipschitz_constraint": {
-            "values": [0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+            "distribution": "log_uniform_values",
+            "min": 0.5,
+            "max": 5.0,
         },
         "augmentation.labels.rejection_quantile": {
             "distribution": "uniform",
