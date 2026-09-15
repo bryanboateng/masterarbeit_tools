@@ -5,9 +5,10 @@ import tyro
 import wandb
 
 from create_sweep import (
-    METHOD_FIXED_ARGUMENTS,
+    METHOD_LEADING_ARGUMENTS,
     METHOD_MODULES,
     METHOD_PARAMETERS,
+    METHOD_TRAILING_ARGUMENTS,
     MethodLabel,
 )
 from dataset_names import build_artifact_name
@@ -70,10 +71,11 @@ def main() -> None:
                 + build_artifact_name(dataset_percentage=config.dataset_percentage)
                 + ":latest",
                 f"--seed={seed}",
-                # Top-level option: it must precede the augmentation subcommand,
-                # or tyro reads it as a (missing) option of that subcommand.
-                *METHOD_FIXED_ARGUMENTS[config.method],
+                # The swept flags sit where the sweep put them, between what
+                # has to precede them and what has to follow.
+                *METHOD_LEADING_ARGUMENTS[config.method],
                 *swept_arguments,
+                *METHOD_TRAILING_ARGUMENTS[config.method],
             ]
             print(" ".join(command))
 

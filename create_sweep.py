@@ -30,13 +30,36 @@ METHOD_MODULES: dict[MethodLabel, str] = {
     "noise-dp": "scripts.policies.dp.run",
 }
 
-METHOD_FIXED_ARGUMENTS: dict[MethodLabel, list[str]] = {
+# tyro only reads a flag between its own subcommand and the next one, and a
+# sweep agent puts every swept flag in one place. So each method says what has
+# to stand before that place and what after it.
+METHOD_LEADING_ARGUMENTS: dict[MethodLabel, list[str]] = {
     "tacil-dp": ["augmentation:tacil"],
     "tacil-bc": ["augmentation:tacil"],
-    "ccil": ["augmentation:ccil"],
+    "ccil": [
+        "augmentation:ccil",
+        # The follow-up paper commits to spectral normalisation and names the
+        # two parameters below it as the ones to tune.
+        "--augmentation.dynamics.lipschitz-type=spectral_normalization",
+        # A quantile carries over between datasets of different size.
+        "--augmentation.labels.rejection=quantile",
+    ],
+    "gpi": [],
+    "mopo": [],
+    "noise-bc": [],
+    "noise-dp": [],
+}
+
+METHOD_TRAILING_ARGUMENTS: dict[MethodLabel, list[str]] = {
+    "tacil-dp": [],
+    "tacil-bc": ["policy.validation:validation-config"],
+    "ccil": [
+        "policy.validation:validation-config",
+        "augmentation.labels.generation:backward-euler",
+    ],
     "gpi": ["--augmentation=None"],
     "mopo": ["--augmentation=None"],
-    "noise-bc": ["augmentation:none"],
+    "noise-bc": ["augmentation:none", "policy.validation:validation-config"],
     "noise-dp": ["augmentation:none"],
 }
 
@@ -90,12 +113,10 @@ METHOD_SEARCHES: dict[MethodLabel, SearchLabel] = {
 METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
     "tacil-dp": _TACIL_PARAMETERS,
     "tacil-bc": _TACIL_PARAMETERS,
+    # The two the follow-up paper names as the ones to tune. The Lipschitz
+    # type and the label generator are fixed, and a sweep could not reach them
+    # anyway: they are subcommands, not values.
     "ccil": {
-        "augmentation.dynamics.lipschitz_type": {
-            "values": ["soft_sampling", "spectral_normalization", "none"]
-        },
-        # A magnitude, so a range rather than stand-in points. CCIL fixes it
-        # per task, at 2.0 on hopper, and never sweeps it.
         "augmentation.dynamics.lipschitz_constraint": {
             "distribution": "log_uniform_values",
             "min": 0.5,
@@ -105,12 +126,6 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
             "distribution": "uniform",
             "min": 0.0,
             "max": 1.0,
-        },
-        "augmentation.labels.type": {"values": ["noisy_action", "backward_euler_fast"]},
-        "augmentation.labels.action_noise_std": {
-            "distribution": "log_uniform_values",
-            "min": 1e-5,
-            "max": 10.0,
         },
     },
     "gpi": {
@@ -183,8 +198,8 @@ def _build_sweep_configuration(*, config: Config, project: str) -> dict[str, Any
     module = METHOD_MODULES[config.method]
     parameters = METHOD_PARAMETERS[config.method]
 
-    leading_arguments = [
-        *METHOD_FIXED_ARGUMENTS[config.method],
+    method_arguments = [
+        *METHOD_LEADING_ARGUMENTS[config.method],
         *(
             [
                 "--augmentation.data.stopping-rule="
@@ -193,14 +208,9 @@ def _build_sweep_configuration(*, config: Config, project: str) -> dict[str, Any
             if config.method.startswith("tacil")
             else []
         ),
+        "${args_no_boolean_flags}",
+        *METHOD_TRAILING_ARGUMENTS[config.method],
     ]
-    swept_arguments = "${args_no_boolean_flags}"
-
-    method_arguments = (
-        [swept_arguments, *leading_arguments]
-        if all(key.startswith("policy.") for key in parameters)
-        else [*leading_arguments, swept_arguments]
-    )
 
     return {
         "program": module.replace(".", "/") + ".py",
