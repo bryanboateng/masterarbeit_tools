@@ -20,9 +20,14 @@ export WANDB_TAGS="${PCT}pct,${POL}-noaug"
 
 SEED=$((SLURM_ARRAY_TASK_ID - 1))
 
+# The datasets are named by episode count, not by percentage. 25% of the 206
+# source episodes is 51.
+declare -A EPISODE_COUNTS=([5]=10 [10]=20 [25]=51 [50]=103 [100]=206)
+EPISODES="${EPISODE_COUNTS[$PCT]:?no dataset exists for ${PCT}%}"
+
 uv run --no-sync python -m "scripts.policies.${POL}.run" \
     --wandb-project=2026-08-24-final \
-    --expert-dataset-artifact="datasets/dataset-${PCT}:latest" \
+    --expert-dataset-artifact="dataset-PushT-${EPISODES}-of-206:latest" \
     --seed="${SEED}" \
     --evaluate-all-conditions \
     augmentation:none

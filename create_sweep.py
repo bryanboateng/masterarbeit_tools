@@ -6,6 +6,7 @@ import tyro
 import wandb
 from rich.pretty import pretty_repr
 
+from dataset_names import build_artifact_name
 from evaluation_labels import RANKING_METRIC
 
 logging.basicConfig(
@@ -13,15 +14,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(name=__name__)
 
-SearchLabel = Literal["bayes", "random"]
+SearchLabel = Literal["bayes", "random", "grid"]
 
-MethodLabel = Literal["tacil-dp", "tacil-bc", "ccil", "gpi"]
+MethodLabel = Literal["tacil-dp", "tacil-bc", "ccil", "gpi", "mopo"]
 
 METHOD_MODULES: dict[MethodLabel, str] = {
     "tacil-dp": "scripts.policies.dp.run",
     "tacil-bc": "scripts.policies.bc.run",
     "ccil": "scripts.policies.bc.run",
     "gpi": "scripts.policies.gpi.run",
+    "mopo": "scripts.policies.mopo.run",
 }
 
 METHOD_FIXED_ARGUMENTS: dict[MethodLabel, list[str]] = {
@@ -29,6 +31,7 @@ METHOD_FIXED_ARGUMENTS: dict[MethodLabel, list[str]] = {
     "tacil-bc": ["augmentation:tacil"],
     "ccil": ["augmentation:ccil"],
     "gpi": ["--augmentation=None"],
+    "mopo": ["--augmentation=None"],
 }
 
 _TACIL_PARAMETERS: dict[str, Any] = {
@@ -88,6 +91,12 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
             "max": 10.0,
         },
         "policy.steps_per_search": {"distribution": "int_uniform", "min": 2, "max": 32},
+    },
+    # The grid the MOPO authors themselves searched, with the penalties the
+    # reference implementation settled on.
+    "mopo": {
+        "policy.rollout.length": {"values": [1, 5]},
+        "policy.rollout.penalty_coefficient": {"values": [0.5, 2.5, 5.0]},
     },
 }
 
@@ -160,7 +169,9 @@ def _build_sweep_configuration(*, config: Config, project: str) -> dict[str, Any
             "-m",
             module,
             f"--wandb-project={project}",
-            f"--expert-dataset-artifact=datasets/dataset-{config.dataset_percentage}:latest",
+            "--expert-dataset-artifact="
+            + build_artifact_name(dataset_percentage=config.dataset_percentage)
+            + ":latest",
             f"--seed={config.seed}",
             *method_arguments,
         ],

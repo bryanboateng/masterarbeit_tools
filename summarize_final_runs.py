@@ -1,5 +1,4 @@
 import math
-import re
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -8,6 +7,7 @@ import tyro
 import wandb
 
 from create_sweep import METHOD_PARAMETERS
+from dataset_names import read_dataset_percentage
 from evaluation_labels import ALL_CONDITIONS_LABEL, CONDITION_LABELS, STAGE
 
 REPORTED_LABELS = (ALL_CONDITIONS_LABEL, *CONDITION_LABELS)
@@ -18,8 +18,6 @@ REPORTED_LABELS = (ALL_CONDITIONS_LABEL, *CONDITION_LABELS)
 SWEPT_PARAMETER_NAMES: dict[str, tuple[str, ...]] = {
     method: tuple(parameters) for method, parameters in METHOD_PARAMETERS.items()
 }
-
-_DATASET_PERCENTAGE_PATTERN = re.compile(r"dataset-(\d+)")
 
 
 @dataclass(frozen=True)
@@ -96,14 +94,14 @@ def _read_group(*, run: Any) -> Group | None:
     if method is None:
         return None
 
-    match = _DATASET_PERCENTAGE_PATTERN.search(
-        run.config.get("expert_dataset_artifact", "")
+    dataset_percentage = read_dataset_percentage(
+        artifact_name=run.config.get("expert_dataset_artifact", "")
     )
-    if match is None:
+    if dataset_percentage is None:
         return None
 
     return Group(
-        dataset_percentage=int(match.group(1)),
+        dataset_percentage=dataset_percentage,
         method=method,
         parameters=tuple(
             (name, _read_parameter(config=run.config, name=name))

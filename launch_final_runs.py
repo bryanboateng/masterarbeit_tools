@@ -10,6 +10,7 @@ from create_sweep import (
     METHOD_PARAMETERS,
     MethodLabel,
 )
+from dataset_names import build_artifact_name
 from evaluation_labels import RANKING_METRIC
 
 logging.basicConfig(
@@ -67,7 +68,9 @@ def main() -> None:
                 "-m",
                 module,
                 f"--wandb-project={config.final_project}",
-                f"--expert-dataset-artifact=datasets/dataset-{config.dataset_percentage}:latest",
+                "--expert-dataset-artifact="
+                + build_artifact_name(dataset_percentage=config.dataset_percentage)
+                + ":latest",
                 f"--seed={seed}",
                 # Top-level option: it must precede the augmentation subcommand,
                 # or tyro reads it as a (missing) option of that subcommand.
