@@ -63,11 +63,27 @@ _TACIL_PARAMETERS: dict[str, Any] = {
     },
 }
 
-# CCIL sets this per task, from 1e-4 on most of them to 1.0 on ant, so the
-# useful magnitude is not known in advance. One parameter over five decades is
-# a grid, not a search: Bayes would spend its first trials rediscovering it.
+# The bounds are the two magnitudes CCIL itself uses: 1e-4 on most tasks and
+# 1.0 on ant. Behavior cloning normalises observations to standard deviations
+# and the diffusion policy to a range, so one grid would mean two different
+# things; a distribution covers both without picking stand-in values.
 _NOISE_PARAMETERS: dict[str, Any] = {
-    "policy.observation_noise": {"values": [1e-4, 1e-3, 1e-2, 1e-1, 1.0]}
+    "policy.observation_noise": {
+        "distribution": "log_uniform_values",
+        "min": 1e-4,
+        "max": 1.0,
+    }
+}
+
+
+METHOD_SEARCHES: dict[MethodLabel, SearchLabel] = {
+    "tacil-dp": "bayes",
+    "tacil-bc": "bayes",
+    "ccil": "bayes",
+    "gpi": "bayes",
+    "mopo": "grid",
+    "noise-bc": "random",
+    "noise-dp": "random",
 }
 
 
@@ -126,7 +142,11 @@ class Config:
     seed: int
 
     use_replay_criterion: bool = False
-    sweep_method: SearchLabel = "bayes"
+
+    # None picks the search that suits the method's parameters. A grid over a
+    # distribution never finishes, and Bayes over a handful of values wastes
+    # its model on them.
+    sweep_method: SearchLabel | None = None
 
     def __post_init__(self) -> None:
         if self.use_replay_criterion and not self.method.startswith("tacil"):
@@ -180,7 +200,7 @@ def _build_sweep_configuration(*, config: Config, project: str) -> dict[str, Any
 
     return {
         "program": module.replace(".", "/") + ".py",
-        "method": config.sweep_method,
+        "method": config.sweep_method or METHOD_SEARCHES[config.method],
         "metric": {"name": RANKING_METRIC, "goal": "maximize"},
         "command": [
             "${env}",
