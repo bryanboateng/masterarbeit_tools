@@ -16,7 +16,9 @@ logger = logging.getLogger(name=__name__)
 
 SearchLabel = Literal["bayes", "random", "grid"]
 
-MethodLabel = Literal["tacil-dp", "tacil-bc", "ccil", "gpi", "mopo"]
+MethodLabel = Literal[
+    "tacil-dp", "tacil-bc", "ccil", "gpi", "mopo", "noise-bc", "noise-dp"
+]
 
 METHOD_MODULES: dict[MethodLabel, str] = {
     "tacil-dp": "scripts.policies.dp.run",
@@ -24,6 +26,8 @@ METHOD_MODULES: dict[MethodLabel, str] = {
     "ccil": "scripts.policies.bc.run",
     "gpi": "scripts.policies.gpi.run",
     "mopo": "scripts.policies.mopo.run",
+    "noise-bc": "scripts.policies.bc.run",
+    "noise-dp": "scripts.policies.dp.run",
 }
 
 METHOD_FIXED_ARGUMENTS: dict[MethodLabel, list[str]] = {
@@ -32,6 +36,8 @@ METHOD_FIXED_ARGUMENTS: dict[MethodLabel, list[str]] = {
     "ccil": ["augmentation:ccil"],
     "gpi": ["--augmentation=None"],
     "mopo": ["--augmentation=None"],
+    "noise-bc": ["augmentation:none"],
+    "noise-dp": ["augmentation:none"],
 }
 
 _TACIL_PARAMETERS: dict[str, Any] = {
@@ -56,6 +62,14 @@ _TACIL_PARAMETERS: dict[str, Any] = {
         "max": 120.0,
     },
 }
+
+# CCIL sets this per task, from 1e-4 on most of them to 1.0 on ant, so the
+# useful magnitude is not known in advance. One parameter over five decades is
+# a grid, not a search: Bayes would spend its first trials rediscovering it.
+_NOISE_PARAMETERS: dict[str, Any] = {
+    "policy.observation_noise": {"values": [1e-4, 1e-3, 1e-2, 1e-1, 1.0]}
+}
+
 
 METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
     "tacil-dp": _TACIL_PARAMETERS,
@@ -98,6 +112,8 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
         "policy.rollout.length": {"values": [1, 5]},
         "policy.rollout.penalty_coefficient": {"values": [0.5, 2.5, 5.0]},
     },
+    "noise-bc": _NOISE_PARAMETERS,
+    "noise-dp": _NOISE_PARAMETERS,
 }
 
 
