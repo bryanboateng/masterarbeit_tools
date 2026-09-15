@@ -6,7 +6,6 @@ import tyro
 import wandb
 from rich.pretty import pretty_repr
 
-from dataset_names import build_artifact_name
 from evaluation_labels import RANKING_METRIC
 
 logging.basicConfig(
@@ -155,7 +154,7 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
 @dataclass(frozen=True)
 class Config:
     project_prefix: str
-    dataset_percentage: int
+    dataset_artifact: str
     method: MethodLabel
 
     seed: int
@@ -222,9 +221,7 @@ def _build_sweep_configuration(*, config: Config, project: str) -> dict[str, Any
             "-m",
             module,
             f"--wandb-project={project}",
-            "--expert-dataset-artifact="
-            + build_artifact_name(dataset_percentage=config.dataset_percentage)
-            + ":latest",
+            f"--expert-dataset-artifact={config.dataset_artifact}",
             f"--seed={config.seed}",
             *method_arguments,
         ],

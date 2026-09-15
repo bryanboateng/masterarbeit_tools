@@ -7,7 +7,7 @@ import tyro
 import wandb
 
 from create_sweep import METHOD_PARAMETERS
-from dataset_names import read_dataset_percentage
+from dataset_names import read_episode_count
 from evaluation_labels import ALL_CONDITIONS_LABEL, CONDITION_LABELS, STAGE
 
 REPORTED_LABELS = (ALL_CONDITIONS_LABEL, *CONDITION_LABELS)
@@ -31,7 +31,7 @@ class Config:
 class Group:
     """The runs that differ only in their seed."""
 
-    dataset_percentage: int
+    episode_count: int
     method: str
     # The swept hyperparameters as (name, value) pairs, empty for a method
     # without any. Pairs rather than a dict so the group can be a mapping key.
@@ -66,7 +66,7 @@ def main() -> None:
         group = best[key]
         seed_count = len(rewards_per_group[group][config.selection_condition])
         print(
-            f"### {group.dataset_percentage} {group.method}   "
+            f"### {group.episode_count} episodes, {group.method}   "
             f"(best config, {seed_count} seeds)"
         )
         print("    config:", dict(group.parameters))
@@ -94,14 +94,14 @@ def _read_group(*, run: Any) -> Group | None:
     if method is None:
         return None
 
-    dataset_percentage = read_dataset_percentage(
+    episode_count = read_episode_count(
         artifact_name=run.config.get("expert_dataset_artifact", "")
     )
-    if dataset_percentage is None:
+    if episode_count is None:
         return None
 
     return Group(
-        dataset_percentage=dataset_percentage,
+        episode_count=episode_count,
         method=method,
         parameters=tuple(
             (name, _read_parameter(config=run.config, name=name))
@@ -154,7 +154,7 @@ def _select_best_per_method(
         if summary is None:
             continue
         mean = summary[0]
-        key = (group.dataset_percentage, group.method)
+        key = (group.episode_count, group.method)
         if key not in best_mean or mean > best_mean[key]:
             best[key] = group
             best_mean[key] = mean

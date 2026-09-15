@@ -43,7 +43,7 @@ METHODS = (
     Method(key="tacil-dp", policy="DP", augmentation="TACIL"),
 )
 
-DATASET_PERCENTAGES = (10, 25, 50, 100)
+DATASET_EPISODE_COUNTS = (10, 20, 50, 100, 206)
 
 CONDITION_LABELS = tuple(
     f"{floor_condition}_{disturbance_label}"
@@ -65,7 +65,7 @@ _REWARD_COLORMAP = colormaps["Blues"]
 @dataclass(frozen=True)
 class Cell:
     condition_label: str
-    dataset_percentage: int
+    episode_count: int
     method_key: str
 
 
@@ -78,7 +78,7 @@ class Result:
 
 def main() -> None:
     results = _read_results(file_path=RESULTS_FILE_PATH)
-    cell_count = len(CONDITION_LABELS) * len(DATASET_PERCENTAGES) * len(METHODS)
+    cell_count = len(CONDITION_LABELS) * len(DATASET_EPISODE_COUNTS) * len(METHODS)
     logger.info(
         "Read %d of %d cells from %s, %d still missing.",
         len(results),
@@ -95,7 +95,7 @@ def _read_results(*, file_path: Path) -> dict[Cell, Result]:
     """Reads the hand-written table.
 
     A line in brackets opens a condition, every line below it holds one cell:
-    the dataset percentage, the method, the reward mean, its standard deviation
+    the episode count, the method, the reward mean, its standard deviation
     and the run URL.
     """
     results: dict[Cell, Result] = {}
@@ -140,15 +140,15 @@ def _read_cell(
     if len(fields) != 4 + 1:
         raise ValueError(
             f"{location}: expected 5 fields "
-            "(percentage, method, mean, standard deviation, URL), "
+            "(episode count, method, mean, standard deviation, URL), "
             f"got {len(fields)}."
         )
-    percentage_text, method_key, mean_text, standard_deviation_text, url = fields
+    count_text, method_key, mean_text, standard_deviation_text, url = fields
 
-    if not percentage_text.isdigit() or int(percentage_text) not in DATASET_PERCENTAGES:
+    if not count_text.isdigit() or int(count_text) not in DATASET_EPISODE_COUNTS:
         raise ValueError(
-            f"{location}: unknown dataset percentage {percentage_text}. Known are "
-            f"{', '.join(str(percentage) for percentage in DATASET_PERCENTAGES)}."
+            f"{location}: unknown episode count {count_text}. Known are "
+            f"{', '.join(str(count) for count in DATASET_EPISODE_COUNTS)}."
         )
     if method_key not in {method.key for method in METHODS}:
         raise ValueError(
@@ -159,7 +159,7 @@ def _read_cell(
     return (
         Cell(
             condition_label=condition_label,
-            dataset_percentage=int(percentage_text),
+            episode_count=int(count_text),
             method_key=method_key,
         ),
         Result(
@@ -204,10 +204,10 @@ def _render_table(*, condition_label: str, results: dict[Cell, Result]) -> str:
     rows = "\n".join(
         _render_row(
             condition_label=condition_label,
-            dataset_percentage=dataset_percentage,
+            episode_count=episode_count,
             results=results,
         )
-        for dataset_percentage in DATASET_PERCENTAGES
+        for episode_count in DATASET_EPISODE_COUNTS
     )
     return f"""<h2>{condition_label.replace("_", " ")}</h2>
 <div class="table-wrapper">
@@ -246,21 +246,21 @@ def _group_by_policy() -> dict[str, list[Method]]:
 
 
 def _render_row(
-    *, condition_label: str, dataset_percentage: int, results: dict[Cell, Result]
+    *, condition_label: str, episode_count: int, results: dict[Cell, Result]
 ) -> str:
     cells = "".join(
         _render_cell(
             result=results.get(
                 Cell(
                     condition_label=condition_label,
-                    dataset_percentage=dataset_percentage,
+                    episode_count=episode_count,
                     method_key=method.key,
                 )
             )
         )
         for method in METHODS
     )
-    return f"<tr><th>{dataset_percentage} %</th>{cells}</tr>"
+    return f"<tr><th>{episode_count}</th>{cells}</tr>"
 
 
 def _render_cell(*, result: Result | None) -> str:

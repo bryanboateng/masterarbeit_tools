@@ -11,7 +11,6 @@ from create_sweep import (
     METHOD_TRAILING_ARGUMENTS,
     MethodLabel,
 )
-from dataset_names import build_artifact_name
 from evaluation_labels import RANKING_METRIC
 
 logging.basicConfig(
@@ -22,7 +21,7 @@ logger = logging.getLogger(name=__name__)
 
 @dataclass(frozen=True)
 class Config:
-    dataset_percentage: int
+    dataset_artifact: str
     method: MethodLabel
 
     sweep_id: str
@@ -67,9 +66,7 @@ def main() -> None:
                 "-m",
                 module,
                 f"--wandb-project={config.final_project}",
-                "--expert-dataset-artifact="
-                + build_artifact_name(dataset_percentage=config.dataset_percentage)
-                + ":latest",
+                f"--expert-dataset-artifact={config.dataset_artifact}",
                 f"--seed={seed}",
                 # The swept flags sit where the sweep put them, between what
                 # has to precede them and what has to follow.

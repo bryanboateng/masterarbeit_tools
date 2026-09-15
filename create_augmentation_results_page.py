@@ -19,6 +19,8 @@ from html import escape
 from pathlib import Path
 
 import wandb
+
+from dataset_names import read_episode_count
 from matplotlib import colormaps
 from matplotlib.colors import to_hex
 
@@ -108,9 +110,9 @@ def main() -> None:
     runs = list(wandb.Api().runs(f"{ENTITY}/{PROJECT}", per_page=500))
     logger.info("Read %d runs from %s/%s.", len(runs), ENTITY, PROJECT)
 
-    percentages, best = _collect(runs=runs)
-    OUTPUT_FILE_PATH.write_text(_render_page(percentages=percentages, best=best))
-    logger.info("Wrote %s (%d dataset sizes).", OUTPUT_FILE_PATH, len(percentages))
+    episode_counts, best = _collect(runs=runs)
+    OUTPUT_FILE_PATH.write_text(_render_page(episode_counts=episode_counts, best=best))
+    logger.info("Wrote %s (%d dataset sizes).", OUTPUT_FILE_PATH, len(episode_counts))
 
 
 def _mean_std(values: list[float]) -> tuple[float, float]:
@@ -138,21 +140,22 @@ def _get(config: dict, dotted: str):
 def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig]]:
     method_by_tag = {method.tag: method for method in METHODS}
     groups: dict = {}
-    percentages: set[int] = set()
+    episode_counts: set[int] = set()
 
     for run in runs:
         if run.state != "finished":
             continue
         tag = next((t for t in run.tags if t in method_by_tag), None)
-        pct_tag = next((t for t in run.tags if t.endswith("pct")), None)
-        if tag is None or pct_tag is None:
+        episode_count = read_episode_count(
+            artifact_name=run.config.get("expert_dataset_artifact", "")
+        )
+        if tag is None or episode_count is None:
             continue
-        pct = int(pct_tag[:-3])
-        percentages.add(pct)
+        episode_counts.add(episode_count)
         method = method_by_tag[tag]
         signature = tuple(_get(run.config, key) for key in method.param_keys)
         group = groups.setdefault(
-            (pct, tag, signature),
+            (episode_count, tag, signature),
             {
                 "rewards": {c: [] for c in CONDITION_LABELS},
                 "len": [],
@@ -175,12 +178,12 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
 
     best: dict[tuple[int, str], BestConfig] = {}
     best_selection: dict[tuple[int, str], float] = {}
-    for (pct, tag, _signature), group in groups.items():
+    for (episode_count, tag, _signature), group in groups.items():
         selection_values = group["rewards"][SELECTION_CONDITION]
         if not selection_values:
             continue
         mean = sum(selection_values) / len(selection_values)
-        key = (pct, tag)
+        key = (episode_count, tag)
         if key in best_selection and mean <= best_selection[key]:
             continue
         best_selection[key] = mean
@@ -201,17 +204,19 @@ def _collect(*, runs: list) -> tuple[list[int], dict[tuple[int, str], BestConfig
             invented_percent=invented_percent,
             url=group["url"],
         )
-    return sorted(percentages), best
+    return sorted(episode_counts), best
 
 
 # ---- rendering -------------------------------------------------------------
 
 
 def _render_page(
-    *, percentages: list[int], best: dict[tuple[int, str], BestConfig]
+    *, episode_counts: list[int], best: dict[tuple[int, str], BestConfig]
 ) -> str:
     tables = "\n".join(
-        _render_condition_table(condition=condition, percentages=percentages, best=best)
+        _render_condition_table(
+            condition=condition, episode_counts=episode_counts, best=best
+        )
         for condition in CONDITION_LABELS
     )
     return f"""<!doctype html>
@@ -248,14 +253,17 @@ def _render_head() -> str:
 
 
 def _render_condition_table(
-    *, condition: str, percentages: list[int], best: dict[tuple[int, str], BestConfig]
+    *,
+    condition: str,
+    episode_counts: list[int],
+    best: dict[tuple[int, str], BestConfig],
 ) -> str:
     colormap = _COLORMAPS[condition.split("_")[0]]
     rows = "\n".join(
         _render_row(
             condition=condition, percentage=percentage, best=best, colormap=colormap
         )
-        for percentage in percentages
+        for percentage in episode_counts
     )
     return f"""<h2>{condition.replace("_", " ")}</h2>
 <div class="table-wrapper">
