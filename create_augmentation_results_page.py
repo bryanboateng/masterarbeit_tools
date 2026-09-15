@@ -22,7 +22,9 @@ import wandb
 from matplotlib import colormaps
 from matplotlib.colors import to_hex
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 logger = logging.getLogger(name=__name__)
 
 ENTITY = "bryanboateng-team"
@@ -348,7 +350,9 @@ def _relative_luminance(hex_color: str) -> float:
     for index in (1, 3, 5):
         channel = int(hex_color[index : index + 2], 16) / 255
         channels.append(
-            channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+            channel / 12.92
+            if channel <= 0.04045
+            else ((channel + 0.055) / 1.055) ** 2.4
         )
     return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
 

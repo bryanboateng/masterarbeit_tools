@@ -38,9 +38,7 @@ class Config:
 def main() -> None:
     config = tyro.cli(f=Config, config=[tyro.conf.UsePythonSyntaxForLiteralCollections])
 
-    sweep_project = (
-        f"{config.project_prefix}-{config.dataset_percentage}-{config.method}"
-    )
+    sweep_project = f"{config.project_prefix}-{config.method}"
     sweep = wandb.Api().sweep(f"{sweep_project}/{config.sweep_id}")
 
     ranked = sorted(

@@ -124,7 +124,10 @@ def main() -> None:
     config = tyro.cli(f=Config, config=[tyro.conf.UsePythonSyntaxForLiteralCollections])
     logger.info(pretty_repr(config))
 
-    project = f"{config.project_prefix}-{config.dataset_percentage}-{config.method}"
+    # The data size is deliberately not in the name: one project per method
+    # holds one sweep per size, which is what makes them comparable. Every run
+    # carries its size in expert_dataset_artifact.
+    project = f"{config.project_prefix}-{config.method}"
     if config.use_replay_criterion:
         project += "-replay"
 
