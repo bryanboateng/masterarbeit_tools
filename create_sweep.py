@@ -122,7 +122,7 @@ METHOD_PARAMETERS: dict[MethodLabel, dict[str, Any]] = {
             "min": 0.5,
             "max": 5.0,
         },
-        "augmentation.labels.rejection_quantile": {
+        "augmentation.labels.rejection_limit": {
             "distribution": "uniform",
             "min": 0.0,
             "max": 1.0,
